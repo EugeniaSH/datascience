@@ -140,3 +140,60 @@ clinton_EV_2 <- replicate(1000, {
     summarize(clinton = sum(clinton) + 7) %>% .$clinton ## 7 for Rhode Island and D.C.
 })
 mean(clinton_EV_2>269)
+
+## Forecasting ##
+one_pollster <- polls_us_election_2016 %>% 
+  filter(pollster == "Ipsos" & state == "U.S.") %>% 
+  mutate(spread = rawpoll_clinton/100 - rawpoll_trump/100)
+
+se <- one_pollster %>% 
+  summarize(empirical = sd(spread), 
+            theoretical = 2*sqrt(mean(spread)*(1-mean(spread))/min(samplesize)))
+se
+
+one_pollster %>% ggplot(aes(spread)) + 
+  geom_histogram(binwidth = 0.01, color = "black")
+
+
+polls_us_election_2016 %>%
+  filter(state == "U.S." & enddate>="2016-07-01") %>%
+  group_by(pollster) %>%
+  filter(n()>=10) %>%
+  ungroup() %>%
+  mutate(spread = rawpoll_clinton/100 - rawpoll_trump/100) %>%
+  ggplot(aes(enddate, spread)) + 
+  geom_smooth(method = "loess", span = 0.1) + 
+  geom_point(aes(color=pollster), show.legend = FALSE, alpha=0.6) 
+
+# actual percentage for the candidates
+polls_us_election_2016 %>%
+  filter(state == "U.S." & enddate>="2016-07-01") %>%
+  select(enddate, pollster, rawpoll_clinton, rawpoll_trump) %>%
+  rename(Clinton = rawpoll_clinton, Trump = rawpoll_trump) %>%
+  gather(candidate, percentage, -enddate, -pollster) %>% 
+  mutate(candidate = factor(candidate, levels = c("Trump","Clinton")))%>%
+  group_by(pollster) %>%
+  filter(n()>=10) %>%
+  ungroup() %>%
+  ggplot(aes(enddate, percentage, color = candidate)) +  
+  geom_point(show.legend = FALSE, alpha=0.4)  + 
+  geom_smooth(method = "loess", span = 0.15) +
+  scale_y_continuous(limits = c(30,50))
+
+## Exercises ##
+# Exercise 1
+# Load the libraries and data
+library(dplyr)
+library(dslabs)
+data("polls_us_election_2016")
+
+# Create a table called `polls` that filters by  state, date, and reports the spread
+polls <- polls_us_election_2016 %>% 
+  filter(state != "U.S." & enddate >= "2016-10-31") %>% 
+  mutate(spread = rawpoll_clinton/100 - rawpoll_trump/100)
+
+# Create an object called `cis` that columns for the lower and upper confidence intervals. Select the columns indicated in the instructions.
+cis <- polls %>% mutate(X_hat = (spread+1)/2, se = 2*sqrt(X_hat*(1-X_hat)/samplesize), 
+                        lower = spread - qnorm(0.975)*se, upper = spread + qnorm(0.975)*se) %>%
+  select(state, startdate, enddate, pollster, grade, spread, lower, upper)
+
