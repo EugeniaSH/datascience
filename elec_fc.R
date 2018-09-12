@@ -197,3 +197,109 @@ cis <- polls %>% mutate(X_hat = (spread+1)/2, se = 2*sqrt(X_hat*(1-X_hat)/sample
                         lower = spread - qnorm(0.975)*se, upper = spread + qnorm(0.975)*se) %>%
   select(state, startdate, enddate, pollster, grade, spread, lower, upper)
 
+# Exercise 2
+# Add the actual results to the `cis` data set
+add <- results_us_election_2016 %>% mutate(actual_spread = clinton/100 - trump/100) %>% select(state, actual_spread)
+cis <- cis %>% mutate(state = as.character(state)) %>% left_join(add, by = "state")
+
+# Create an object called `p_hits` that summarizes the proportion of confidence intervals that contain the actual value. Print this object to the console.
+p_hits <- cis %>% mutate(hit = lower <= actual_spread & upper >= actual_spread) %>% summarize(proportion_hits = mean(hit))
+p_hits
+
+# Exercise 3
+# The `cis` data have already been loaded for you
+add <- results_us_election_2016 %>% mutate(actual_spread = clinton/100 - trump/100) %>% select(state, actual_spread)
+cis <- cis %>% mutate(state = as.character(state)) %>% left_join(add, by = "state")
+
+# Create an object called `p_hits` that summarizes the proportion of hits for each pollster that has more than 5 polls.
+p_hits <- cis %>% mutate(hit = lower <= actual_spread & upper >= actual_spread) %>% 
+  group_by(pollster) %>%
+  filter(n() >=  5) %>%
+  summarize(proportion_hits = mean(hit), n = n(), grade = grade[1]) %>%
+  arrange(desc(proportion_hits))
+p_hits
+
+# Exercise 4
+# The `cis` data have already been loaded for you
+add <- results_us_election_2016 %>% mutate(actual_spread = clinton/100 - trump/100) %>% select(state, actual_spread)
+ci_data <- cis %>% mutate(state = as.character(state)) %>% left_join(add, by = "state")
+
+# Create an object called `p_hits` that summarizes the proportion of hits for each state that has more than 5 polls. 
+p_hits <- ci_data %>% mutate(hit = lower <= actual_spread & upper >= actual_spread) %>% 
+  group_by(state) %>%
+  filter(n() >=  5) %>%
+  summarize(proportion_hits = mean(hit), n = n()) %>%
+  arrange(desc(proportion_hits)) 
+p_hits
+
+# Exercise 5
+# The `p_hits` data have already been loaded for you. Use the `head` function to examine it.
+head(p_hits)
+
+# Make a barplot of the proportion of hits for each state
+p_hits %>% mutate(state = reorder(state, proportion_hits)) %>%
+  ggplot(aes(state, proportion_hits)) + 
+  geom_bar(stat = "identity") +
+  coord_flip()
+
+# Exercise 6 
+# The `cis` data have already been loaded. Examine it using the `head` function.
+head(cis)
+
+# Create an object called `errors` that calculates the difference between the predicted and actual spread and indicates if the correct winner was predicted
+errors <- cis %>% mutate(error = spread - actual_spread, hit = sign(spread) == sign(actual_spread))
+
+# Examine the last 6 rows of `errors`
+tail(errors)
+
+# Exercise 7
+# Create an object called `errors` that calculates the difference between the predicted and actual spread and indicates if the correct winner was predicted
+errors <- cis %>% mutate(error = spread - actual_spread, hit = sign(spread) == sign(actual_spread))
+
+# Create an object called `p_hits` that summarizes the proportion of hits for each state that has more than 5 polls
+p_hits <- errors %>%  group_by(state) %>%
+  filter(n() >=  5) %>%
+  summarize(proportion_hits = mean(hit), n = n())
+
+# Make a barplot of the proportion of hits for each state
+p_hits %>% mutate(state = reorder(state, proportion_hits)) %>%
+  ggplot(aes(state, proportion_hits)) + 
+  geom_bar(stat = "identity") +
+  coord_flip()
+
+# Exercise 8
+# The `errors` data have already been loaded. Examine them using the `head` function.
+head(errors)
+
+# Generate a histogram of the error
+hist(errors$error)
+
+# Calculate the median of the errors. Print this value to the console.
+median(errors$error)
+
+# Exercise 9
+# The `errors` data have already been loaded. Examine them using the `head` function.
+head(errors)
+
+# Create a boxplot showing the errors by state for polls with grades B+ or higher
+  errors %>% filter(grade %in% c("A+","A","A-","B+") | is.na(grade)) %>%
+  mutate(state = reorder(state, error)) %>%
+  ggplot(aes(state, error)) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  geom_boxplot() + 
+  geom_point()
+  
+# Exercise 10
+  # The `errors` data have already been loaded. Examine them using the `head` function.
+  head(errors)
+  
+  # Create a boxplot showing the errors by state for states with at least 5 polls with grades B+ or higher
+  errors %>% filter(grade %in% c("A+","A","A-","B+") | is.na(grade)) %>%
+    group_by(state) %>%
+    filter(n() >=  5) %>%
+    ungroup(state) %>%
+    mutate(state = reorder(state, error)) %>% 
+    ggplot(aes(state, error)) + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    geom_boxplot() + 
+    geom_point()
